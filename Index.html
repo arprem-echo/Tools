@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timezone Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f6f8;
+        }
+
+        .converter {
+            max-width: 1100px;
+        }
+
+        .top-sections {
+            display: flex;
+            gap: 16px;
+            align-items: stretch;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .panel {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background: #fff;
+            padding: 16px;
+            box-sizing: border-box;
+            min-width: 320px;
+        }
+
+        .panel h3,
+        .bottom-section h3 {
+            margin: 0 0 14px 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .panel-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .tz-select-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        input[type="number"] {
+            width: 56px;
+            padding: 8px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        input[type="text"] {
+            width: 220px;
+            padding: 8px 10px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        input[type="date"] {
+            padding: 8px;
+            font-size: 16px;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 16px;
+        }
+
+        .digital-display {
+            font-size: 22px;
+            font-weight: bold;
+            background: #222;
+            color: #0f0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            min-width: 160px;
+            text-align: center;
+        }
+
+        .divider {
+            border-top: 2px solid #d0d0d0;
+            margin: 8px 0 18px 0;
+        }
+
+        .bottom-section {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background: #fff;
+            padding: 16px;
+        }
+
+        .generic-date-row {
+            margin-bottom: 12px;
+        }
+
+        .generic-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .generic-block {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .output-box {
+            width: 220px;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            margin-top: 18px;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        function clearOnFocus(el) {
+            el.value = '';
+        }
+
+        function to24Hour(hour, ampm) {
+            hour = parseInt(hour, 10);
+            if (ampm === 'PM' && hour < 12) hour += 12;
+            if (ampm === 'AM' && hour === 12) hour = 0;
+            return hour;
+        }
+
+        function getFormatterParts(date, timeZone) {
+            const formatter = new Intl.DateTimeFormat('en-CA', {
+                timeZone: timeZone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hourCycle: 'h23'
+            });
+
+            const parts = formatter.formatToParts(date);
+            const map = {};
+            parts.forEach(part => {
+                if (part.type !== 'literal') {
+                    map[part.type] = part.value;
+                }
+            });
+            return map;
+        }
+
+        function getTimeZoneOffset(date, timeZone) {
+            const parts = getFormatterParts(date, timeZone);
+            const utcTime = Date.UTC(
+                parseInt(parts.year, 10),
+                parseInt(parts.month, 10) - 1,
+                parseInt(parts.day, 10),
+                parseInt(parts.hour, 10),
+                parseInt(parts.minute, 10),
+                parseInt(parts.second, 10)
+            );
+            return utcTime - date.getTime();
+        }
+
+        function zonedDateTimeToUtc(dateStr, hour, minute, ampm, timeZone) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const hour24 = to24Hour(hour, ampm);
+
+            const approxUtc = new Date(Date.UTC(year, month - 1, day, hour24, minute, 0));
+            const offset = getTimeZoneOffset(approxUtc, timeZone);
+            return new Date(approxUtc.getTime() - offset);
+        }
+
+        function formatTimeOnly(date, timeZone) {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: timeZone,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }).format(date);
+        }
+
+        function convertSpecific(fromDateId, hourId, minuteId, ampmId, outputId, fromZone, toZone) {
+            const dateStr = document.getElementById(fromDateId).value;
+            const hour = document.getElementById(hourId).value;
+            const minute = document.getElementById(minuteId).value;
+            const ampm = document.getElementById(ampmId).value;
+
+            if (!dateStr || hour === '' || minute === '') {
+                document.getElementById(outputId).textContent = '--:--';
+                return;
+            }
+
+            const utcDate = zonedDateTimeToUtc(dateStr, hour, minute, ampm, fromZone);
+            document.getElementById(outputId).textContent = formatTimeOnly(utcDate, toZone);
+        }
+
+        function convertISTtoIrish() {
+            convertSpecific('istDate', 'istHour', 'istMinute', 'istAmPm', 'irishDisplay', 'Asia/Kolkata', 'Europe/Dublin');
+        }
+
+        function convertIrishToIST() {
+            convertSpecific('irishDate', 'irishHour', 'irishMinute', 'irishAmPm', 'istDisplay', 'Europe/Dublin', 'Asia/Kolkata');
+        }
+
+        const majorTimezones = [
+            { label: 'Baker Island (UTC-12:00)', zone: 'Etc/GMT+12' },
+            { label: 'Hawaii (UTC-10:00)', zone: 'Pacific/Honolulu' },
+            { label: 'Alaska (UTC-09:00)', zone: 'America/Anchorage' },
+            { label: 'Pacific Time (UTC-08:00)', zone: 'America/Los_Angeles' },
+            { label: 'Mountain Time (UTC-07:00)', zone: 'America/Denver' },
+            { label: 'Central Time (UTC-06:00)', zone: 'America/Chicago' },
+            { label: 'Eastern Time (UTC-05:00)', zone: 'America/New_York' },
+            { label: 'Atlantic Time (UTC-04:00)', zone: 'America/Halifax' },
+            { label: 'Newfoundland (UTC-03:30)', zone: 'America/St_Johns' },
+            { label: 'Brazil, Argentina (UTC-03:00)', zone: 'America/Argentina/Buenos_Aires' },
+            { label: 'South Georgia (UTC-02:00)', zone: 'Atlantic/South_Georgia' },
+            { label: 'Azores (UTC-01:00)', zone: 'Atlantic/Azores' },
+            { label: 'United Kingdom, Ireland, Portugal (UTC+00:00)', zone: 'Europe/Dublin' },
+            { label: 'Central Europe, West Africa (UTC+01:00)', zone: 'Europe/Paris' },
+            { label: 'Eastern Europe, South Africa (UTC+02:00)', zone: 'Europe/Athens' },
+            { label: 'Moscow, East Africa (UTC+03:00)', zone: 'Europe/Moscow' },
+            { label: 'Iran (UTC+03:30)', zone: 'Asia/Tehran' },
+            { label: 'Gulf (UTC+04:00)', zone: 'Asia/Dubai' },
+            { label: 'Afghanistan (UTC+04:30)', zone: 'Asia/Kabul' },
+            { label: 'Pakistan (UTC+05:00)', zone: 'Asia/Karachi' },
+            { label: 'India, Sri Lanka (UTC+05:30)', zone: 'Asia/Kolkata' },
+            { label: 'Bangladesh (UTC+06:00)', zone: 'Asia/Dhaka' },
+            { label: 'Thailand, Vietnam (UTC+07:00)', zone: 'Asia/Bangkok' },
+            { label: 'China, Singapore (UTC+08:00)', zone: 'Asia/Shanghai' },
+            { label: 'Japan, Korea (UTC+09:00)', zone: 'Asia/Tokyo' },
+            { label: 'Australia Central (UTC+09:30)', zone: 'Australia/Adelaide' },
+            { label: 'Australia Eastern (UTC+10:00)', zone: 'Australia/Sydney' },
+            { label: 'Solomon Islands (UTC+11:00)', zone: 'Pacific/Guadalcanal' },
+            { label: 'New Zealand, Fiji (UTC+12:00)', zone: 'Pacific/Auckland' }
+        ];
+
+        function populateTimezones() {
+            const from = document.getElementById('customFromTimezone');
+            const to = document.getElementById('customToTimezone');
+
+            from.innerHTML = '';
+            to.innerHTML = '';
+
+            majorTimezones.forEach((tz, index) => {
+                const option1 = document.createElement('option');
+                option1.value = index;
+                option1.textContent = tz.label;
+                from.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = index;
+                option2.textContent = tz.label;
+                to.appendChild(option2);
+            });
+
+            from.value = 20;
+            to.value = 12;
+            setTodayDates();
+        }
+
+        function setTodayDates() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+
+            document.getElementById('istDate').value = todayStr;
+            document.getElementById('irishDate').value = todayStr;
+            document.getElementById('customDate').value = todayStr;
+        }
+
+        function convertCustomTimezone() {
+            const dateStr = document.getElementById('customDate').value;
+            const hour = document.getElementById('customHour').value;
+            const minute = document.getElementById('customMinute').value;
+            const ampm = document.getElementById('customAmPm').value;
+            const fromIndex = parseInt(document.getElementById('customFromTimezone').value, 10);
+            const toIndex = parseInt(document.getElementById('customToTimezone').value, 10);
+
+            if (!dateStr || hour === '' || minute === '') {
+                document.getElementById('customOutput').value = '';
+                return;
+            }
+
+            const fromZone = majorTimezones[fromIndex].zone;
+            const toZone = majorTimezones[toIndex].zone;
+
+            const utcDate = zonedDateTimeToUtc(dateStr, hour, minute, ampm, fromZone);
+            document.getElementById('customOutput').value = formatTimeOnly(utcDate, toZone);
+        }
+
+        function clearAll() {
+            document.getElementById('istHour').value = '';
+            document.getElementById('istMinute').value = '';
+            document.getElementById('irishHour').value = '';
+            document.getElementById('irishMinute').value = '';
+            document.getElementById('customHour').value = '';
+            document.getElementById('customMinute').value = '';
+            document.getElementById('irishDisplay').textContent = '--:--';
+            document.getElementById('istDisplay').textContent = '--:--';
+            document.getElementById('customOutput').value = '';
+            setTodayDates();
+        }
+
+        window.onload = populateTimezones;
+    </script>
+</head>
+<body>
+    <div class="converter">
+        <div class="top-sections">
+            <div class="panel">
+                <h3>Indian to Irish</h3>
+                <div class="controls" style="margin-bottom: 12px;">
+                    <input id="istDate" type="date" onchange="convertISTtoIrish()">
+                </div>
+
+                <div class="panel-row">
+                    <div class="controls">
+                        <input id="istHour" type="number" placeholder="HH" onfocus="clearOnFocus(this)" onblur="convertISTtoIrish()" onkeydown="if(event.key==='Enter') convertISTtoIrish()">
+                        <span>:</span>
+                        <input id="istMinute" type="number" placeholder="MM" onfocus="clearOnFocus(this)" onblur="convertISTtoIrish()" onkeydown="if(event.key==='Enter') convertISTtoIrish()">
+                        <select id="istAmPm" onchange="convertISTtoIrish()">
+                            <option>AM</option>
+                            <option>PM</option>
+                        </select>
+                    </div>
+                    <div class="digital-display" id="irishDisplay">--:--</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Irish to Indian</h3>
+                <div class="controls" style="margin-bottom: 12px;">
+                    <input id="irishDate" type="date" onchange="convertIrishToIST()">
+                </div>
+
+                <div class="panel-row">
+                    <div class="controls">
+                        <input id="irishHour" type="number" placeholder="HH" onfocus="clearOnFocus(this)" onblur="convertIrishToIST()" onkeydown="if(event.key==='Enter') convertIrishToIST()">
+                        <span>:</span>
+                        <input id="irishMinute" type="number" placeholder="MM" onfocus="clearOnFocus(this)" onblur="convertIrishToIST()" onkeydown="if(event.key==='Enter') convertIrishToIST()">
+                        <select id="irishAmPm" onchange="convertIrishToIST()">
+                            <option>AM</option>
+                            <option>PM</option>
+                        </select>
+                    </div>
+                    <div class="digital-display" id="istDisplay">--:--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="bottom-section">
+            <h3>Generic Converter</h3>
+
+            <div class="generic-date-row">
+                <input id="customDate" type="date" onchange="convertCustomTimezone()">
+            </div>
+
+            <div class="generic-row">
+                <div class="generic-block">
+                    <div class="tz-select-row">
+                        <select id="customFromTimezone" onchange="convertCustomTimezone()"></select>
+                    </div>
+
+                    <div class="controls">
+                        <input id="customHour" type="number" placeholder="HH" onfocus="clearOnFocus(this)" onblur="convertCustomTimezone()" onkeydown="if(event.key==='Enter') convertCustomTimezone()">
+                        <span>:</span>
+                        <input id="customMinute" type="number" placeholder="MM" onfocus="clearOnFocus(this)" onblur="convertCustomTimezone()" onkeydown="if(event.key==='Enter') convertCustomTimezone()">
+                        <select id="customAmPm" onchange="convertCustomTimezone()">
+                            <option>AM</option>
+                            <option>PM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="generic-block">
+                    <div class="tz-select-row">
+                        <select id="customToTimezone" onchange="convertCustomTimezone()"></select>
+                    </div>
+
+                    <input id="customOutput" class="output-box" type="text" readonly>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="clearAll()">Clear All</button>
+    </div>
+</body>
+</html>
