@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -130,6 +131,20 @@
 
         .output-box {
             width: 220px;
+            font-size: 22px;
+            font-weight: bold;
+            background: #222;
+            color: #0f0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            border: none;
+            box-sizing: border-box;
+        }
+
+        .output-box:focus {
+            outline: none;
         }
 
         button {
@@ -137,6 +152,17 @@
             font-size: 16px;
             margin-top: 18px;
             cursor: pointer;
+        }
+
+        .fun-line {
+            width: 100%;
+            margin-top: 14px;
+            color: #7d8f87;
+            font-size: 14px;
+            font-style: italic;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     </style>
     <script>
@@ -173,25 +199,25 @@
             return map;
         }
 
-        function getTimeZoneOffset(date, timeZone) {
-            const parts = getFormatterParts(date, timeZone);
-            const utcTime = Date.UTC(
-                parseInt(parts.year, 10),
-                parseInt(parts.month, 10) - 1,
-                parseInt(parts.day, 10),
-                parseInt(parts.hour, 10),
-                parseInt(parts.minute, 10),
-                parseInt(parts.second, 10)
-            );
-            return utcTime - date.getTime();
-        }
-
         function zonedDateTimeToUtc(dateStr, hour, minute, ampm, timeZone) {
-            const [year, month, day] = dateStr.split('-').map(Number);
             const hour24 = to24Hour(hour, ampm);
+            const [year, month, day] = dateStr.split('-').map(Number);
 
-            const approxUtc = new Date(Date.UTC(year, month - 1, day, hour24, minute, 0));
-            const offset = getTimeZoneOffset(approxUtc, timeZone);
+            const approxUtc = new Date(Date.UTC(year, month - 1, day, hour24, parseInt(minute, 10), 0));
+            const zonedParts = getFormatterParts(approxUtc, timeZone);
+
+            const zonedAsUtc = Date.UTC(
+                parseInt(zonedParts.year, 10),
+                parseInt(zonedParts.month, 10) - 1,
+                parseInt(zonedParts.day, 10),
+                parseInt(zonedParts.hour, 10),
+                parseInt(zonedParts.minute, 10),
+                parseInt(zonedParts.second, 10)
+            );
+
+            const desiredAsUtc = Date.UTC(year, month - 1, day, hour24, parseInt(minute, 10), 0);
+            const offset = zonedAsUtc - desiredAsUtc;
+
             return new Date(approxUtc.getTime() - offset);
         }
 
@@ -202,6 +228,71 @@
                 minute: '2-digit',
                 hour12: true
             }).format(date);
+        }
+
+        const majorTimezones = [
+            { label: 'US Pacific (UTC-08:00)', zone: 'America/Los_Angeles' },
+            { label: 'US Mountain (UTC-07:00)', zone: 'America/Denver' },
+            { label: 'US Central (UTC-06:00)', zone: 'America/Chicago' },
+            { label: 'US Eastern (UTC-05:00)', zone: 'America/New_York' },
+            { label: 'Brazil (UTC-03:00)', zone: 'America/Sao_Paulo' },
+            { label: 'UK (UTC+00:00)', zone: 'Europe/London' },
+            { label: 'Ireland (UTC+00:00)', zone: 'Europe/Dublin' },
+            { label: 'Central Europe (UTC+01:00)', zone: 'Europe/Berlin' },
+            { label: 'Eastern Europe (UTC+02:00)', zone: 'Europe/Athens' },
+            { label: 'South Africa (UTC+02:00)', zone: 'Africa/Johannesburg' },
+            { label: 'Turkey (UTC+03:00)', zone: 'Europe/Istanbul' },
+            { label: 'Gulf (UTC+04:00)', zone: 'Asia/Dubai' },
+            { label: 'Afghanistan (UTC+04:30)', zone: 'Asia/Kabul' },
+            { label: 'Pakistan (UTC+05:00)', zone: 'Asia/Karachi' },
+            { label: 'India, Sri Lanka (UTC+05:30)', zone: 'Asia/Kolkata' },
+            { label: 'Bangladesh (UTC+06:00)', zone: 'Asia/Dhaka' },
+            { label: 'Thailand, Vietnam (UTC+07:00)', zone: 'Asia/Bangkok' },
+            { label: 'China, Singapore (UTC+08:00)', zone: 'Asia/Shanghai' },
+            { label: 'Japan, Korea (UTC+09:00)', zone: 'Asia/Tokyo' },
+            { label: 'Australia Central (UTC+09:30)', zone: 'Australia/Adelaide' },
+            { label: 'Australia Eastern (UTC+10:00)', zone: 'Australia/Sydney' },
+            { label: 'Solomon Islands (UTC+11:00)', zone: 'Pacific/Guadalcanal' },
+            { label: 'New Zealand, Fiji (UTC+12:00)', zone: 'Pacific/Auckland' }
+        ];
+
+        const funFacts = [
+            'India uses a single time zone for the whole country, even though it is wide enough to span more than one.',
+            'Ireland and the United Kingdom often share the same clock time, but their time zone identifiers are different.',
+            'Some places use half-hour offsets, like India at UTC plus 5 hours 30 minutes.',
+            'Nepal is famous for using a 45-minute offset, making it one of the most unusual standard times in the world.',
+            'Australia has multiple time zones, and some regions also use half-hour offsets.',
+            'Newfoundland in Canada uses UTC minus 3 hours 30 minutes, one of the best-known half-hour time zones.',
+            'Time zones do not always follow straight lines because they often bend around country or state borders.',
+            'China officially uses one time zone for the whole country, despite its very large east-to-west size.',
+            'Daylight saving time means the same city can have different UTC offsets during the year.',
+            'The International Date Line is why two nearby places can sometimes be on different calendar dates.',
+            'Coordinated Universal Time, or UTC, is the reference point used for the world’s time zones.',
+            'A flight can land earlier by the clock than when it took off if it crosses time zones westward.'
+        ];
+
+        function setCurrentTimeForZone(hourId, minuteId, ampmId, timeZone) {
+            const now = new Date();
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: timeZone,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }).formatToParts(now);
+
+            let hour = '';
+            let minute = '';
+            let dayPeriod = 'AM';
+
+            parts.forEach(part => {
+                if (part.type === 'hour') hour = part.value;
+                if (part.type === 'minute') minute = part.value;
+                if (part.type === 'dayPeriod') dayPeriod = part.value.toUpperCase();
+            });
+
+            document.getElementById(hourId).value = parseInt(hour, 10);
+            document.getElementById(minuteId).value = minute;
+            document.getElementById(ampmId).value = dayPeriod;
         }
 
         function convertSpecific(fromDateId, hourId, minuteId, ampmId, outputId, fromZone, toZone) {
@@ -227,61 +318,58 @@
             convertSpecific('irishDate', 'irishHour', 'irishMinute', 'irishAmPm', 'istDisplay', 'Europe/Dublin', 'Asia/Kolkata');
         }
 
-        const majorTimezones = [
-            { label: 'Baker Island (UTC-12:00)', zone: 'Etc/GMT+12' },
-            { label: 'Hawaii (UTC-10:00)', zone: 'Pacific/Honolulu' },
-            { label: 'Alaska (UTC-09:00)', zone: 'America/Anchorage' },
-            { label: 'Pacific Time (UTC-08:00)', zone: 'America/Los_Angeles' },
-            { label: 'Mountain Time (UTC-07:00)', zone: 'America/Denver' },
-            { label: 'Central Time (UTC-06:00)', zone: 'America/Chicago' },
-            { label: 'Eastern Time (UTC-05:00)', zone: 'America/New_York' },
-            { label: 'Atlantic Time (UTC-04:00)', zone: 'America/Halifax' },
-            { label: 'Newfoundland (UTC-03:30)', zone: 'America/St_Johns' },
-            { label: 'Brazil, Argentina (UTC-03:00)', zone: 'America/Argentina/Buenos_Aires' },
-            { label: 'South Georgia (UTC-02:00)', zone: 'Atlantic/South_Georgia' },
-            { label: 'Azores (UTC-01:00)', zone: 'Atlantic/Azores' },
-            { label: 'United Kingdom, Ireland, Portugal (UTC+00:00)', zone: 'Europe/Dublin' },
-            { label: 'Central Europe, West Africa (UTC+01:00)', zone: 'Europe/Paris' },
-            { label: 'Eastern Europe, South Africa (UTC+02:00)', zone: 'Europe/Athens' },
-            { label: 'Moscow, East Africa (UTC+03:00)', zone: 'Europe/Moscow' },
-            { label: 'Iran (UTC+03:30)', zone: 'Asia/Tehran' },
-            { label: 'Gulf (UTC+04:00)', zone: 'Asia/Dubai' },
-            { label: 'Afghanistan (UTC+04:30)', zone: 'Asia/Kabul' },
-            { label: 'Pakistan (UTC+05:00)', zone: 'Asia/Karachi' },
-            { label: 'India, Sri Lanka (UTC+05:30)', zone: 'Asia/Kolkata' },
-            { label: 'Bangladesh (UTC+06:00)', zone: 'Asia/Dhaka' },
-            { label: 'Thailand, Vietnam (UTC+07:00)', zone: 'Asia/Bangkok' },
-            { label: 'China, Singapore (UTC+08:00)', zone: 'Asia/Shanghai' },
-            { label: 'Japan, Korea (UTC+09:00)', zone: 'Asia/Tokyo' },
-            { label: 'Australia Central (UTC+09:30)', zone: 'Australia/Adelaide' },
-            { label: 'Australia Eastern (UTC+10:00)', zone: 'Australia/Sydney' },
-            { label: 'Solomon Islands (UTC+11:00)', zone: 'Pacific/Guadalcanal' },
-            { label: 'New Zealand, Fiji (UTC+12:00)', zone: 'Pacific/Auckland' }
-        ];
+        function convertCustomTimezone() {
+            const dateStr = document.getElementById('customDate').value;
+            const hour = document.getElementById('customHour').value;
+            const minute = document.getElementById('customMinute').value;
+            const ampm = document.getElementById('customAmPm').value;
+            const fromIndex = parseInt(document.getElementById('customFromTimezone').value, 10);
+            const toIndex = parseInt(document.getElementById('customToTimezone').value, 10);
+
+            if (!dateStr || hour === '' || minute === '' || isNaN(fromIndex) || isNaN(toIndex)) {
+                document.getElementById('customOutput').value = '';
+                return;
+            }
+
+            const fromZone = majorTimezones[fromIndex].zone;
+            const toZone = majorTimezones[toIndex].zone;
+            const utcDate = zonedDateTimeToUtc(dateStr, hour, minute, ampm, fromZone);
+
+            document.getElementById('customOutput').value = formatTimeOnly(utcDate, toZone);
+        }
+
+        function refreshGenericCurrentTime() {
+            const fromIndex = parseInt(document.getElementById('customFromTimezone').value, 10);
+            const fromZone = majorTimezones[fromIndex].zone;
+            setCurrentTimeForZone('customHour', 'customMinute', 'customAmPm', fromZone);
+            convertCustomTimezone();
+        }
 
         function populateTimezones() {
-            const from = document.getElementById('customFromTimezone');
-            const to = document.getElementById('customToTimezone');
+    const from = document.getElementById('customFromTimezone');
+    const to = document.getElementById('customToTimezone');
 
-            from.innerHTML = '';
-            to.innerHTML = '';
+    from.innerHTML = '';
+    to.innerHTML = '';
 
-            majorTimezones.forEach((tz, index) => {
-                const option1 = document.createElement('option');
-                option1.value = index;
-                option1.textContent = tz.label;
-                from.appendChild(option1);
+    majorTimezones.forEach((tz, index) => {
+        const option1 = document.createElement('option');
+        option1.value = index;
+        option1.textContent = tz.label;
+        from.appendChild(option1);
 
-                const option2 = document.createElement('option');
-                option2.value = index;
-                option2.textContent = tz.label;
-                to.appendChild(option2);
-            });
+        const option2 = document.createElement('option');
+        option2.value = index;
+        option2.textContent = tz.label;
+        to.appendChild(option2);
+    });
 
-            from.value = 20;
-            to.value = 12;
-            setTodayDates();
-        }
+    from.value = 7;
+    to.value = 3;
+    setTodayDates();
+    loadCurrentTimes();
+    loadFunFact();
+}
 
         function setTodayDates() {
             const today = new Date();
@@ -295,37 +383,44 @@
             document.getElementById('customDate').value = todayStr;
         }
 
-        function convertCustomTimezone() {
-            const dateStr = document.getElementById('customDate').value;
-            const hour = document.getElementById('customHour').value;
-            const minute = document.getElementById('customMinute').value;
-            const ampm = document.getElementById('customAmPm').value;
+        function loadCurrentTimes() {
+            setCurrentTimeForZone('istHour', 'istMinute', 'istAmPm', 'Asia/Kolkata');
+            setCurrentTimeForZone('irishHour', 'irishMinute', 'irishAmPm', 'Europe/Dublin');
+
             const fromIndex = parseInt(document.getElementById('customFromTimezone').value, 10);
-            const toIndex = parseInt(document.getElementById('customToTimezone').value, 10);
-
-            if (!dateStr || hour === '' || minute === '') {
-                document.getElementById('customOutput').value = '';
-                return;
-            }
-
             const fromZone = majorTimezones[fromIndex].zone;
-            const toZone = majorTimezones[toIndex].zone;
+            setCurrentTimeForZone('customHour', 'customMinute', 'customAmPm', fromZone);
 
-            const utcDate = zonedDateTimeToUtc(dateStr, hour, minute, ampm, fromZone);
-            document.getElementById('customOutput').value = formatTimeOnly(utcDate, toZone);
+            convertISTtoIrish();
+            convertIrishToIST();
+            convertCustomTimezone();
+        }
+
+        function loadFunFact() {
+            const factBox = document.getElementById('funFactText');
+            const randomIndex = Math.floor(Math.random() * funFacts.length);
+            factBox.textContent = funFacts[randomIndex];
         }
 
         function clearAll() {
+            document.getElementById('istDate').value = '';
             document.getElementById('istHour').value = '';
             document.getElementById('istMinute').value = '';
+            document.getElementById('istAmPm').value = 'AM';
+
+            document.getElementById('irishDate').value = '';
             document.getElementById('irishHour').value = '';
             document.getElementById('irishMinute').value = '';
+            document.getElementById('irishAmPm').value = 'AM';
+
+            document.getElementById('customDate').value = '';
             document.getElementById('customHour').value = '';
             document.getElementById('customMinute').value = '';
+            document.getElementById('customAmPm').value = 'AM';
+
             document.getElementById('irishDisplay').textContent = '--:--';
             document.getElementById('istDisplay').textContent = '--:--';
             document.getElementById('customOutput').value = '';
-            setTodayDates();
         }
 
         window.onload = populateTimezones;
@@ -339,7 +434,6 @@
                 <div class="controls" style="margin-bottom: 12px;">
                     <input id="istDate" type="date" onchange="convertISTtoIrish()">
                 </div>
-
                 <div class="panel-row">
                     <div class="controls">
                         <input id="istHour" type="number" placeholder="HH" onfocus="clearOnFocus(this)" onblur="convertISTtoIrish()" onkeydown="if(event.key==='Enter') convertISTtoIrish()">
@@ -359,7 +453,6 @@
                 <div class="controls" style="margin-bottom: 12px;">
                     <input id="irishDate" type="date" onchange="convertIrishToIST()">
                 </div>
-
                 <div class="panel-row">
                     <div class="controls">
                         <input id="irishHour" type="number" placeholder="HH" onfocus="clearOnFocus(this)" onblur="convertIrishToIST()" onkeydown="if(event.key==='Enter') convertIrishToIST()">
@@ -387,7 +480,7 @@
             <div class="generic-row">
                 <div class="generic-block">
                     <div class="tz-select-row">
-                        <select id="customFromTimezone" onchange="convertCustomTimezone()"></select>
+                        <select id="customFromTimezone" onchange="refreshGenericCurrentTime()"></select>
                     </div>
 
                     <div class="controls">
@@ -412,6 +505,8 @@
         </div>
 
         <button onclick="clearAll()">Clear All</button>
+
+<!--         <div class="fun-line" id="funFactText"></div> -->
     </div>
 </body>
 </html>
